@@ -15,9 +15,9 @@ RESET='\e[0m'
 # Needed packages
 package_list=("base" "KERNEL" "linux-firmware" "KERNEL HEADERS" "base-devel" "nano" "git" "cmake" "meson" "networkmanager" "ufw" "sudo" "btrfs-progs" "bash-completion" "pkgfile" "fwupd" "smartmontools" "man-db" "man-pages" "grub" "efibootmgr" "linux-headers" "dkms" "reflector" "chrony")
 # Graphical packages
-hyprland_package=("wayland" "hyprland" "hyprland-protocols" "xdg-desktop-portal-hyprland")
-gnome_package=("gnome" "gnome-extra")
-gnome_package_complete=("gnome" "gnome-extra")
+hyprland_package=("wayland" "uwsm" "hyprland" "hyprland-protocols" "xdg-desktop-portal-hyprland")
+gnome_package=("gnome")
+gnome_package_complete=("gnome-extra")
 kde_package=("plasma-desktop")
 kde_package_complete=("plasma-meta" "kde-applications-meta")
 
@@ -108,38 +108,54 @@ microcode_selector(){
 
 # Partition and format the disk
 partition_disk(){
+	# TODO test if this functioon work well
 	
+	disk=""
 	root_partition=""
 	efi_partition=""
 	swap_partition=""
 	
-	user_interaction_print "Use a swap partition ? [y/N]"
-	read use_swap
-	if [[ "$use_swap" =~ $regex_yes ]]; then
-		user_interaction_print "Swap partition size ? (In Gib, integer only)"
-		read swap_size
-		if ! [[ $swap_size =~ $regex_number ]]; then
+	# TODO list disk and ask the user wich one it the good 
+	#fdisk -l 
+	
+
+	user_interaction_print "Swap partition size ? (In Gib, integer only) Left empty to not use swap "
+	read swap_size
+	if [ -z "$swap_size" ] || [ $swap_size == 0 ]; then
+		info_print "Not using swap"
+	else
+		if ! [[ $swap_size =~ $regex_number ]] ; then
 			error_print "Please enter a valid number"
 			return 1
 		fi
+		info_print "Using a ${swap_size}Gib swap partition"
 	fi
+		
 
-
+	# TODO add an option for the main partition to take all the remaining place
 	user_interaction_print "Main partition size ? (In Gib, integer only)"
 	read root_size
 	if ! [[ $root_size =~ $regex_number ]]; then
 		error_print "Please enter a valid number"
 		return 1
 	fi
+	info_print "Using a ${root_size}Gib main partition"
+
+	exit # TODO remove
+
+	# create 1Gib efi partition 
+	(echo "n"; echo "p"; echo ""; echo ""; echo "+1G"; echo "t"; echo "uefi"; echo "w") | fdsik $disk
+	
+	# create ${root_size} GiB main partition 
+	(echo "n"; echo "p"; echo ""; echo ""; echo "+${root_size}G"; echo "w") | fdsik $disk
+	
+	# create ${swap_size} GiB swap  
+	if [ ! -z "$swap_size" ] && [ ! $swap_size == 0 ]; then
+	(echo "n"; echo "p"; echo ""; echo ""; echo "+${swap_size}G"; echo "t"; echo "swap"; echo "w") | fdsik $disk
+fi
 
 
-	# create 1Gib efi partition TODO
-	
-	# create XGiB main partition TODO
-	
-	# create XGiB swap partition if use_swap TODO
-	
-	#  Format the partitions
+	#  Format the partitions 
 	mkfs.fat -F 32 $efi_partition
 	
 	mkfs.btrfs $root_partition
@@ -283,10 +299,12 @@ microcode_selector
 # Select a kernel
 until kernel_selector; do : ; done
  
-exit # TODO remove
+
 
 # Partition disk
 until partition_disk; do : ; done
+
+exit # TODO remove
 
 # Mount the partitions
 mount $main_partition /mnt
