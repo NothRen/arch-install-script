@@ -13,7 +13,9 @@ BLUE='\e[34m'
 RESET='\e[0m'
 
 # Needed packages
-package_list=("base" "KERNEL" "linux-firmware" "KERNEL HEADERS" "base-devel" "nano" "git" "cmake" "meson" "networkmanager" "ufw" "sudo" "btrfs-progs" "bash-completion" "pkgfile" "fwupd" "smartmontools" "man-db" "man-pages" "grub" "efibootmgr" "linux-headers" "dkms" "reflector" "chrony")
+package_list=("base" "KERNEL" "linux-firmware" "KERNEL HEADERS" "base-devel" "nano" "git" "cmake" "meson" "networkmanager" "ufw" "sudo" "btrfs-progs" "bash-completion" "pkgfile" "fwupd" "smartmontools" "man-db" "man-pages" "grub" "efibootmgr" "linux-headers" "dkms" "reflector" "chrony" "ntfs-3g")
+# service
+systemd_services=("")
 # Graphical packages
 hyprland_package=("wayland" "uwsm" "hyprland" "hyprland-protocols" "xdg-desktop-portal-hyprland")
 gnome_package=("gnome")
@@ -26,6 +28,10 @@ system_lang="fr_FR.UTF-8 UTF-8"
 keyboard_lang="fr-latin1"
 graphical_env="hyprland"
 # Print functions
+
+separator_print(){
+	echo "---------------------------"
+}
 
 info_print(){
 	 echo -e "${BOLD}${BLUE}[INFO]${RESET} ${BOLD}$1${RESET}"
@@ -95,7 +101,7 @@ system_language_selector(){
 	return 0
 }
 
-# Choose wich microcode is needed
+# Choose which microcode is needed
 microcode_selector(){
 	CPU=$(grep vendor_id /proc/cpuinfo)
 
@@ -108,20 +114,46 @@ microcode_selector(){
 
 # Partition and format the disk
 partition_disk(){
-	# TODO test if this functioon work well
+	# TODO test if this function work well
 	
 	disk=""
+	disk_total_space=""
 	root_partition=""
 	efi_partition=""
 	swap_partition=""
-	
-	# TODO list disk and ask the user wich one it the good 
-	#fdisk -l 
-	
 
+	# Ask the user on which disk arch should be installed 	
+	user_interaction_print "On which disk arch should be installed (ex : sda, nvme0n1) ? It will remove all existing partition on the disk"
+	
+	# Show all disks
+	lsblk
+	
+	# Read the answer and verify if the disk exist
+	read selected_disk
+	if ! (lsblk | grep "${selected_disk}.*disk"&> /dev/null) || ! (ls /dev/${selected_disk}&> /dev/null); then
+		error_print "This disk doesn't exist"
+		return 1
+	fi
+	
+	info_print "${selected_disk} is selected"
+	
+	# Get the path to the disk
+	disk_path="/dev/${selected_disk}"
+
+	# Get the disk total space
+	disk_total_space=$(($(lsblk -bo NAME,SIZE | grep "$selected_disk" | head -n1 | grep -oE "[0-9,]{10,}")/1024/1024/1024))
+	cmd_res=$?
+	
+	# Check if the disk is more than 100Gib
+	if [ $cmd_res -eq 1 ] || [ $disk_total_space -lt 100 ] ; then 
+		error_print "Your disk must be at least 100Gib"
+		exit 1
+	fi
+
+	# Ask the user the size of swap partition
 	user_interaction_print "Swap partition size ? (In Gib, integer only) Left empty to not use swap "
 	read swap_size
-	if [ -z "$swap_size" ] || [ $swap_size == 0 ]; then
+	if [ -z "$swap_size" ] || [ $swap_size -eq 0 ]; then
 		info_print "Not using swap"
 	else
 		if ! [[ $swap_size =~ $regex_number ]] ; then
@@ -130,31 +162,76 @@ partition_disk(){
 		fi
 		info_print "Using a ${swap_size}Gib swap partition"
 	fi
-		
-
-	# TODO add an option for the main partition to take all the remaining place
+	
+	# Ask the user the size of root partition
 	user_interaction_print "Main partition size ? (In Gib, integer only)"
 	read root_size
-	if ! [[ $root_size =~ $regex_number ]]; then
-		error_print "Please enter a valid number"
+	if  [[ ! $root_size =~ $regex_number ]] && [ ! -z "$root_size" ] ; then
+		error_print "Please enter a valid number or an empty input"
 		return 1
 	fi
-	info_print "Using a ${root_size}Gib main partition"
-
-	exit # TODO remove
-
-	# create 1Gib efi partition 
-	(echo "n"; echo "p"; echo ""; echo ""; echo "+1G"; echo "t"; echo "uefi"; echo "w") | fdsik $disk
 	
-	# create ${root_size} GiB main partition 
-	(echo "n"; echo "p"; echo ""; echo ""; echo "+${root_size}G"; echo "w") | fdsik $disk
+	if [[ -z ${root_size} ]]; then
+		info_print "Creating main partition using all available space"
+	else
+		info_print "Creating a ${root_size}Gib main partition"
+	fi
 	
-	# create ${swap_size} GiB swap  
+	
+	# Ask the user for confirmation before writing to disk
+	user_interaction_print "On ${disk_path} it will create :"
+	echo "A 1GiB efi partition"
+	
+	if [ ! -z "$swap_size" ] && [ ! $swap_size -eq 0 ]; then
+		echo "A ${swap_size}Gib swap partition"
+	fi
+	
+	if  [ ! -z "$root_size" ]; then
+		echo "A ${root_size}Gib root partition"
+	else
+	 	echo "A $(($disk_total_space-$swap_size-1))Gib root partition"
+	fi
+	
+	user_interaction_print "Is it OK ? All existing partition on ${disk_path} will be removed [y/n]"
+	read disk_answer
+	if ! [[ $disk_answer =~ $regex_yes ]] ; then
+		error_print "Return to the start of the disk partitionning"
+		return 1
+	fi
+	
+	# If root size is not empty add + and G for fdisk below
+	if [ ! -z "$root_size" ];then
+		root_size="+${root_size}G"
+	fi
+	
+	return 0 # TODO remove in the end
+	
+	# Remove all partition from disk
+	dd if=/dev/zero of=$disk_path bs=512 count=1 conv=notrunc
+
+	info_print "Creating the partition"
+	# Create the partition with with fdisk
 	if [ ! -z "$swap_size" ] && [ ! $swap_size == 0 ]; then
-	(echo "n"; echo "p"; echo ""; echo ""; echo "+${swap_size}G"; echo "t"; echo "swap"; echo "w") | fdsik $disk
-fi
+		(echo "n"; echo "p"; echo ""; echo ""; echo "+1G"; echo "t"; echo "uefi"; \
+		echo "n"; echo "p"; echo ""; echo ""; echo "+${swap_size}G"; echo "t"; echo "swap"; \
+		echo "n"; echo "p"; echo ""; echo ""; echo "${root_size}"; echo "w") | fdsik $disk_path
+	else
+		(echo "n"; echo "p"; echo ""; echo ""; echo "+1G"; echo "t"; echo "uefi"; \
+		echo "n"; echo "p"; echo ""; echo ""; echo "${root_size}"; echo "w") | fdsik $disk_path
+	fi
+	
+	partitions=( $(lsblk "$disk_path" | grep -oE "$selected_disk[^ ]*\w") )
 
+	efi_partition=$partitions[0]
 
+	if [ ! -z "$swap_size" ] && [ ! $swap_size == 0 ]; then
+		swap_partition=$partitions[1]
+		root_partition=$partitions[2]
+	else 
+		root_partition=$partitions[1]
+	fi
+
+	info_print "Formatting the partition"
 	#  Format the partitions 
 	mkfs.fat -F 32 $efi_partition
 	
@@ -223,7 +300,7 @@ For wifi you can use ${ITALIC}iwctl${RESET}${BOLD} :
 		exit 1
 	fi
 	
-	info_print "Internet connection working !"
+	info_print "Internet connection found"
 	return 0
 }
 
@@ -276,7 +353,16 @@ kde_setup(){
 
 info_print "Script start"
 
-# TODO move this
+# Check if the distrib is arch, if it is not print an error
+check_arch=0
+if ! cat /etc/lsb-release | grep "Arch"&>/dev/null && [ $check_arch -eq 1 ];then
+	error_print "This script work only on arch. If you want to run it anyway change ${ITALIC}check_arch=1${RESET}${BOLD} by ${ITALIC}check_arch=0${RESET}${BOLD} on line $(($LINENO-2))"
+	exit 1
+fi
+
+
+
+# TODO move this two line below chroot
 until graphical_environment_selector; do : ; done
 
 until graphical_environment_setup; do : ; done
@@ -315,13 +401,21 @@ if [ -n "$swap_partition" ]; then
 	swapon $swap_partition
 fi
 
-# Select the hostname
-until hostname_selector; do : ; done
-
 
 # Inintialize pacman
 print_info "Installing base packages"
 pacstrap -K /mnt ${package_list[*]}
+
+
+# Select the hostname
+until hostname_selector; do : ; done
+
+# Create the hosts file
+cat > /mnt/etc/hosts <<EOF
+127.0.0.1	localhost
+::1			localhost
+127.0.0.1	$hostname
+EOF
 
 # Generate fstab file
 genfstab -U /mnt >> /mnt/etc/fstab
@@ -330,6 +424,7 @@ genfstab -U /mnt >> /mnt/etc/fstab
 exit 1 # TODO remove
 
 # TODO check if the following work
+# TODO add an option to choose the timezone OR use (http://ip-api.com/line?fields=timezone)
 arch-chroot /mnt /bin/bash -e <<EOF
 	
 	# Set timezone to Paris
@@ -355,10 +450,29 @@ arch-chroot /mnt /bin/bash -e <<EOF
 
 EOF
 
-# TODO Configuring all services installed by pacstrap
+# Install a graphical environment
 
-# TODO set users
+# TODO Configuring all services installed by pacstrap
+#systemctl enable 
+
+
+# TODO set users and passwords
 
 # TODO install nvida/amd drivers
+
+# Ask the user if the script should stop the computer
+user_interaction_print "Shutdown the computer now ? y/N"
+read restart_answer
+if [[ restart_answer =~ $regex_yes ]];then
+	# TODO test this and remove exit
+	echo "Shutdown"
+	exit
+	umount -R /mnt
+	shutdown now
+fi
+
+print_info ""
+exit 0
+
 
 
