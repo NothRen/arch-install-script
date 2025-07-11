@@ -354,9 +354,9 @@ kde_setup(){
 info_print "Script start"
 
 # Check if the distrib is arch, if it is not print an error
-check_arch=0
-if ! cat /etc/lsb-release | grep "Arch"&>/dev/null && [ $check_arch -eq 1 ];then
-	error_print "This script work only on arch. If you want to run it anyway change ${ITALIC}check_arch=1${RESET}${BOLD} by ${ITALIC}check_arch=0${RESET}${BOLD} on line $(($LINENO-2))"
+
+if ! cat /etc/lsb-release | grep "Arch"&>/dev/null && [ -z ${check_arch+x} ];then
+	error_print "This script work only on arch. If you want to run it anyway add ${ITALIC}check_arch=0${RESET}${BOLD} before running the script (ex : $ ${ITALIC}check_arch=0 ./arch_auto_install.sh ${RESET})"
 	exit 1
 fi
 
