@@ -5,3 +5,4 @@
 ### Todo ?
 
 - Add an option to not delete other partition and to choose an existing efi partition
+- Handle desktop and laptop

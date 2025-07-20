@@ -271,6 +271,7 @@ kernel_selector(){
 
 }
 
+# Ask for hostname 
 hostname_selector(){
 	
 	user_interaction_print "What hostname do you want ?"
@@ -286,6 +287,9 @@ hostname_selector(){
 	
 }
 
+# Timezone selector
+
+# Check internet connection
 check_internet(){
 	info_print "Checking internet connection ..."
 	
@@ -304,6 +308,7 @@ For wifi you can use ${ITALIC}iwctl${RESET}${BOLD} :
 	return 0
 }
 
+# Ask for the graphical environment
 graphical_environment_selector(){
 	user_interaction_print "Which graphical environment do you want :"
 	echo "
@@ -384,7 +389,7 @@ microcode_selector
 
 # Select a kernel
 until kernel_selector; do : ; done
- 
+
 
 
 # Partition disk
