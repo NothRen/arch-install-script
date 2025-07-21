@@ -13,7 +13,7 @@ BLUE='\e[34m'
 RESET='\e[0m'
 
 # Needed packages
-package_list=("base" "KERNEL" "linux-firmware" "KERNEL HEADERS" "base-devel" "nano" "git" "cmake" "meson" "networkmanager" "ufw" "sudo" "btrfs-progs" "bash-completion" "pkgfile" "fwupd" "smartmontools" "man-db" "man-pages" "grub" "efibootmgr" "linux-headers" "dkms" "reflector" "chrony" "ntfs-3g")
+package_list=("base" "KERNEL" "linux-firmware" "KERNEL HEADERS" "base-devel" "nano" "git" "cmake" "meson" "networkmanager" "ufw" "sudo" "btrfs-progs" "bash-completion" "pkgfile" "fwupd" "smartmontools" "man-db" "man-pages" "grub" "efibootmgr" "dkms" "reflector" "chrony" "ntfs-3g" "lynis")
 # service
 systemd_services=("")
 # Graphical packages
@@ -204,7 +204,10 @@ partition_disk(){
 		root_size="+${root_size}G"
 	fi
 	
-	return 0 # TODO remove in the end
+	if [ "$is_arch"="false" ];then
+		info_print "Skipping partitionning because the script does not run on arch."
+		return 0
+	fi
 	
 	# Remove all partition from disk
 	dd if=/dev/zero of=$disk_path bs=512 count=1 conv=notrunc
@@ -288,6 +291,7 @@ hostname_selector(){
 }
 
 # Timezone selector
+# TODO ?
 
 # Check internet connection
 check_internet(){
@@ -360,45 +364,49 @@ info_print "Script start"
 
 # Check if the distrib is arch, if it is not print an error
 
-if ! cat /etc/lsb-release | grep "Arch"&>/dev/null && [ -z ${check_arch+x} ];then
-	error_print "This script work only on arch. If you want to run it anyway add ${ITALIC}check_arch=0${RESET}${BOLD} before running the script (ex : $ ${ITALIC}check_arch=0 ./arch_auto_install.sh ${RESET})"
+if ! cat /etc/lsb-release | grep "Arch"&>/dev/null ;then
+	is_arch=false
+	if [ -z ${check_arch+x} ];then
+		error_print "This script work only on arch live iso. If you want to run it anyway add ${ITALIC}check_arch=0${RESET}${BOLD} before running the script (ex : $ ${ITALIC}check_arch=0 ./arch_auto_install.sh ${RESET})"
 	exit 1
+	fi
+else
+	is_arch=true
 fi
-
-
-
-# TODO move this two line below chroot
-until graphical_environment_selector; do : ; done
-
-until graphical_environment_setup; do : ; done
 
 # Check if bios is supported
 check_bios_mode
 
 # Check if internet is connected
-check_internet
+check_internet;separator_print
 
 # Wait until the keyboard layout selection is successfull
 until keyboard_layout_selector; do : ; done
+separator_print
 
 # Wait until the system language selection is successfull
 until system_language_selector; do : ; done
+separator_print
 
 # Select a microcode
 microcode_selector
 
 # Select a kernel
 until kernel_selector; do : ; done
+separator_print
 
-
+# Select the graphical environment
+until graphical_environment_selector; do : ; done
+separator_print
 
 # Partition disk
 until partition_disk; do : ; done
+separator_print
 
 exit # TODO remove
 
 # Mount the partitions
-mount $main_partition /mnt
+mount $root_partition /mnt
 mount --mkdir $efi_partition /mnt/boot
 
 # Init the swap
@@ -428,8 +436,9 @@ genfstab -U /mnt >> /mnt/etc/fstab
 
 exit 1 # TODO remove
 
-# TODO check if the following work
+
 # TODO add an option to choose the timezone OR use (http://ip-api.com/line?fields=timezone)
+# TODO check if the following work
 arch-chroot /mnt /bin/bash -e <<EOF
 	
 	# Set timezone to Paris
@@ -449,17 +458,31 @@ arch-chroot /mnt /bin/bash -e <<EOF
 	mkinitcpio -P
 	
 	# Install grub
-	grub-install --target=x86_64-efi --efi-directory=esp --bootloader-id=arch
+	grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=arch
 	
 	grub-mkconfig -o /boot/grub/grub.cfg
 
 EOF
 
 # Install a graphical environment
+until graphical_environment_setup; do : ; done
 
 # TODO Configuring all services installed by pacstrap
-#systemctl enable 
+services=(NetworkManager.service reflector.timer ufw.service)
+for service in "${services[@]}"; do
+	systemctl enable "$service"
+done
 
+# Disable iptables.service beacause it is not compatible with ufw
+systemctl disable iptables.service
+
+# Set reflector config 
+cat > /mnt/etc/xdg/reflector/reflector.conf << EOF
+--save /etc/pacman.d/mirrorlist
+--country France,Germany
+--protocol https
+--latest 10
+EOF
 
 # TODO set users and passwords
 
@@ -470,13 +493,12 @@ user_interaction_print "Shutdown the computer now ? y/N"
 read restart_answer
 if [[ restart_answer =~ $regex_yes ]];then
 	# TODO test this and remove exit
-	echo "Shutdown"
-	exit
+	print_info "Shutdown"
 	umount -R /mnt
 	shutdown now
 fi
 
-print_info ""
+print_info "Script has finished, you can now restart your computer."
 exit 0
 
 
