@@ -13,15 +13,14 @@ BLUE='\e[34m'
 RESET='\e[0m'
 
 # Needed packages
-package_list=("base" "KERNEL" "linux-firmware" "KERNEL HEADERS" "base-devel" "nano" "git" "cmake" "meson" "networkmanager" "ufw" "sudo" "btrfs-progs" "bash-completion" "pkgfile" "fwupd" "smartmontools" "man-db" "man-pages" "grub" "efibootmgr" "dkms" "reflector" "chrony" "ntfs-3g" "lynis")
+package_list=("base" "KERNEL" "linux-firmware" "KERNEL HEADERS" "base-devel" "nano" "git" "cmake" "meson" "networkmanager" "ufw" "sudo" "btrfs-progs" "bash-completion" "pkgfile" "fwupd" "smartmontools" "man-db" "man-pages" "grub" "efibootmgr" "dkms" "reflector" "ntfs-3g" "lynis" "7zip" "xdg_user_dirs")
 # service
-systemd_services=("")
+services=(NetworkManager.service reflector.timer ufw.service pkgfile-update.timer fwupd.service fwupd-refresh.timer)
+
 # Graphical packages
-hyprland_package=("wayland" "uwsm" "hyprland" "hyprland-protocols" "xdg-desktop-portal-hyprland")
-gnome_package=("gnome")
-gnome_package_complete=("gnome-extra")
-kde_package=("plasma-desktop")
-kde_package_complete=("plasma-meta" "kde-applications-meta")
+global_graphical_packages=("wayland" "xorg-xwayland" "xdg-desktop-portal" "qt6-wayland" "qt5-wayland" "gtk3" "gtk4" "wl-clip-persist" "pipewire" "pipewire-audio")
+
+
 
 # System 
 system_lang="fr_FR.UTF-8 UTF-8"
@@ -109,6 +108,63 @@ microcode_selector(){
 		package_list+=("amd-ucode")
 	else
 		package_list+=("intel-ucode")
+	fi
+}
+
+# Choose root password 
+root_pwd_selector(){
+	# TODO test
+	# Select the root password
+	user_interaction_print "Type the root password : "
+	read -r -s rootpwd
+
+	if [ -z "$rootpwd" ]; then
+		error_print "Please enter a non empty password"
+		return 1
+	fi
+
+	user_interaction_print "Type the root password again : "
+	read -r -s rootpwd_check
+	
+	if [ "$rootpwd" != "$rootpwd_check" ]; then
+		error_print "Passwords don't match, please try again"
+		return 1
+	fi
+}
+# Choose to add an user or not
+user_pwd_selector(){
+	# TODO test
+	user_interaction_print "Do you want to create another user ? [y/N]"
+	read create_user
+	
+	if ! [[ $create_user =~ $regex_yes ]]; then
+		
+			return 0
+		
+	fi
+	
+	user_interaction_print "What is the username of your new user ?"
+	read username
+	
+	if [ -z "$username" ]; then
+		error_print "Please enter a non empty username"
+		return 1
+	fi
+	
+	user_interaction_print "Type the password for ${username} : "
+	read -r -s userpwd
+
+	if [ -z "$rootpwd" ]; then
+		error_print "Please enter a non empty password"
+		return 1
+	fi
+
+	user_interaction_print "Type the password ${username} again : "
+	read -r -s userpwd_check
+	
+	if [ "$userpwd" != "$userpwd_check" ]; then
+		error_print "Passwords don't match, please try again"
+		return 1
 	fi
 }
 
@@ -336,28 +392,69 @@ graphical_environment_selector(){
 	return 0;
 }
 
+# Installed the asked graphical environment
 graphical_environment_setup(){
+
+	
+	if [ "$graphical_env" != "none" ]; then
+		# install global graphical packages
+		pacstrap -G /mnt ${global_graphical_packages[*]}
+		gpu_driver_setup
+	fi
+
 	case "$graphical_env" in
 		"none") return 0;;
 		"hyprland") until hyprland_setup; do : ; done;;
 		"gnome") until gnome_setup; do : ; done;;
 		"kde") until kde_setup; do : ; done;;
 	esac
+	
+}
+
+# Setup the gpu driver
+gpu_driver_setup(){
+	
+	# Check which gpu is here
+	gpus=$(lspci | grep VGA)
+	nvidia=$(echo $gpus | grep -i nvidia)
+	intel=$(echo $gpus | grep -i intel)
+	amd=$(echo $gpus | grep -i amd)
+	
+	
+	if [ -z $nvidia ];then
+		# Not having nvidia gpu
+		echo ""
+	fi
+	
+	# TODO install gpu drivers
+	
 }
 
 hyprland_setup(){
 	# TODO install & setup hyprland
-	echo ""
+	hyprland_package=("uwsm" "hyprland" "hyprland-protocols" "xdg-desktop-portal-hyprland" "hyprpaper")
+
+	
+	# 
+	cat > /mnt/home/$username/.profile << EOF 
+if uwsm check may-start && uwsm select;then
+	exec uwsm start default
+fi 
+EOF
 }
 
 gnome_setup(){
 	# TODO install & setup gnome
-	echo ""
+	gnome_package=("gnome" "xdg-desktop-portal-gnome")
+	gnome_package_complete=("gnome-extra")
 }
 
 kde_setup(){
 	# TODO install & setup kde plasma
-	echo ""
+	kde_package=( "plasma-desktop" "xdg-desktop-portal-kde")
+	kde_package_complete=("plasma-meta" "kde-applications-meta")
+	
+	
 }
 
 info_print "Script start"
@@ -399,6 +496,13 @@ separator_print
 until graphical_environment_selector; do : ; done
 separator_print
 
+# Select the root password and if a user must be created
+until root_pwd_selector; do : ; done
+separator_print
+
+until user_pwd_selector; do : ; done
+separator_print
+
 # Partition disk
 until partition_disk; do : ; done
 separator_print
@@ -434,9 +538,6 @@ EOF
 genfstab -U /mnt >> /mnt/etc/fstab
 
 
-exit 1 # TODO remove
-
-
 # TODO add an option to choose the timezone OR use (http://ip-api.com/line?fields=timezone)
 # TODO check if the following work
 arch-chroot /mnt /bin/bash -e <<EOF
@@ -453,12 +554,31 @@ arch-chroot /mnt /bin/bash -e <<EOF
 	echo "LANG=$system_lang" > /etc/locale.conf
 	echo "KEYMAP=$keyboard_lang" > /etc/vconsole.conf
 	
+	# Create users directory using xdg-user-dirs
+	xdg-user-dirs-update
+	
+	# Syncing pkgfile
+	pkgfile -u
+	
+	# Enable automatique pkgfile refresh
+	cp /usr/lib/systemd/system/pkgfile-update.timer /etc/systemd/system/pkgfile-update.timer
+	sed -i 's/OnCalendar=daily/OnCalendar=weekly/' /etc/systemd/system/pkgfile-update.timer
+	
+	# Add command not found script from pkgfile to the global bashrc
+	echo "source /usr/share/doc/pkgfile/command-not-found.bash" >> /etc/skel/.bashrc
+	
+	# Add .bash file to root directory
+	cp /etc/skel/.bash* ~
+	
+	# Disable passim (used in fwupd) 
+	echo "P2pPolicy=nothing" >> /etc/fwupd/fwupd.conf
+	systemctl mask passim.service
 	
 	# Generate initramfs
 	mkinitcpio -P
 	
 	# Install grub
-	grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=arch
+	grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=arch
 	
 	grub-mkconfig -o /boot/grub/grub.cfg
 
@@ -467,16 +587,18 @@ EOF
 # Install a graphical environment
 until graphical_environment_setup; do : ; done
 
-# TODO Configuring all services installed by pacstrap
-services=(NetworkManager.service reflector.timer ufw.service)
-for service in "${services[@]}"; do
-	systemctl enable "$service"
-done
 
 # Disable iptables.service beacause it is not compatible with ufw
-systemctl disable iptables.service
+systemctl disable iptables.service --root=/mnt
+# TODO Configuring all services installed by pacstrap
+for service in "${services[@]}"; do
+	systemctl enable "$service" --root=/mnt
+done
 
-# Set reflector config 
+# Disable remote ping
+sed -i 's/-A ufw-before-input -p icmp --icmp-type echo-request -j ACCEPT/-A ufw-before-input -p icmp --icmp-type echo-request -j DROP/' /mnt/etc/ufw/before.rules
+
+# Set reflector config
 cat > /mnt/etc/xdg/reflector/reflector.conf << EOF
 --save /etc/pacman.d/mirrorlist
 --country France,Germany
@@ -486,7 +608,12 @@ EOF
 
 # TODO set users and passwords
 
-# TODO install nvida/amd drivers
+cat > /mnt/home/${username}/.profile << EOF
+xdg-user-dirs-update
+EOF
+
+# Make ~/.bashrc to execute ~/.profile
+echo ". $$HOME/.profile" >> /mnt/home/${username}/.bashrc
 
 # Ask the user if the script should stop the computer
 user_interaction_print "Shutdown the computer now ? y/N"
@@ -495,6 +622,7 @@ if [[ restart_answer =~ $regex_yes ]];then
 	# TODO test this and remove exit
 	print_info "Shutdown"
 	umount -R /mnt
+	exit 0
 	shutdown now
 fi
 
