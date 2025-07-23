@@ -13,14 +13,9 @@ BLUE='\e[34m'
 RESET='\e[0m'
 
 # Needed packages
-package_list=("base" "KERNEL" "linux-firmware" "KERNEL HEADERS" "base-devel" "nano" "git" "cmake" "meson" "networkmanager" "ufw" "sudo" "btrfs-progs" "bash-completion" "pkgfile" "fwupd" "smartmontools" "man-db" "man-pages" "grub" "efibootmgr" "dkms" "reflector" "ntfs-3g" "lynis" "7zip" "xdg_user_dirs")
+package_list=("base" "KERNEL" "linux-firmware" "KERNEL HEADERS" "base-devel" "nano" "git" "cmake" "meson" "networkmanager" "ufw" "sudo" "btrfs-progs" "bash-completion" "pkgfile" "fwupd" "smartmontools" "man-db" "man-pages" "grub" "efibootmgr" "dkms" "reflector" "ntfs-3g" "lynis" "7zip" "xdg_user_dirs" "pacman-contrib" "util-linux")
 # service
 services=(NetworkManager.service reflector.timer ufw.service pkgfile-update.timer fwupd.service fwupd-refresh.timer)
-
-# Graphical packages
-global_graphical_packages=("wayland" "xorg-xwayland" "xdg-desktop-portal" "qt6-wayland" "qt5-wayland" "gtk3" "gtk4" "wl-clip-persist" "pipewire" "pipewire-audio")
-
-
 
 # System 
 system_lang="fr_FR.UTF-8 UTF-8"
@@ -42,6 +37,14 @@ user_interaction_print(){
 
 error_print(){
 	 echo -e "${BOLD}${RED}[ERROR]${RESET} ${BOLD}$1${RESET}"
+}
+
+# Helper functions
+
+# install given packages. To call the function : install_packages "${array[@]}"
+install_packages() {
+	packages_to_install=("$@")
+	pacstrap -G /mnt ${packages_to_install[*]}
 }
 
 # Other functions
@@ -130,6 +133,8 @@ root_pwd_selector(){
 		error_print "Passwords don't match, please try again"
 		return 1
 	fi
+	
+	return 0
 }
 # Choose to add an user or not
 user_pwd_selector(){
@@ -139,22 +144,33 @@ user_pwd_selector(){
 	
 	if ! [[ $create_user =~ $regex_yes ]]; then
 		
-			return 0
+		info_print "Not creating a user"
+		return 0
 		
 	fi
 	
-	user_interaction_print "What is the username of your new user ?"
-	read username
+	user_interaction_print "Enter the username of your new user : "
+	read -r -s username
 	
 	if [ -z "$username" ]; then
 		error_print "Please enter a non empty username"
 		return 1
 	fi
 	
+	user_interaction_print "Should your user use the same password as root ? [y/N]"
+	read -r -s user_same_pwd
+	if [[ $user_same_pwd =~ $regex_yes ]]; then
+		
+		info_print "Same password used"
+		$userpwd=$rootpwd
+		return 0
+		
+	fi
+	
 	user_interaction_print "Type the password for ${username} : "
 	read -r -s userpwd
 
-	if [ -z "$rootpwd" ]; then
+	if [ -z "$userpwd" ]; then
 		error_print "Please enter a non empty password"
 		return 1
 	fi
@@ -166,6 +182,8 @@ user_pwd_selector(){
 		error_print "Passwords don't match, please try again"
 		return 1
 	fi
+	
+	return 0
 }
 
 # Partition and format the disk
@@ -298,6 +316,12 @@ partition_disk(){
 	
 	mkswap $swap_partition
 
+	
+	# Check if installed disk is a ssd, if yes enable weekly trim
+	if [ $(cat /sys/block/${selected_disk}/queue/rotational) -eq 0 ];then
+		services+=(fstrim.timer)
+		echo $services[*]
+	fi
 
 	return 0
 }
@@ -395,10 +419,14 @@ graphical_environment_selector(){
 # Installed the asked graphical environment
 graphical_environment_setup(){
 
+	# Graphical packages
+	global_graphical_packages=("wayland" "xorg-xwayland" "xdg-desktop-portal" "qt6-wayland" "qt5-wayland" "gtk3" "gtk4" "wl-clip-persist" "pipewire" "pipewire-audio")
+	
+	graphical_package_app=("firefox")
 	
 	if [ "$graphical_env" != "none" ]; then
 		# install global graphical packages
-		pacstrap -G /mnt ${global_graphical_packages[*]}
+		install_packages ${global_graphical_packages[@]}
 		gpu_driver_setup
 	fi
 
@@ -409,6 +437,60 @@ graphical_environment_setup(){
 		"kde") until kde_setup; do : ; done;;
 	esac
 	
+}
+
+hyprland_setup(){
+	# TODO install & setup hyprland
+	hyprland_package=("uwsm" "hyprland" "hyprland-protocols" "xdg-desktop-portal-hyprland" "hyprpaper")
+
+	
+	# 
+	cat > /mnt/home/$username/.profile << EOF 
+if uwsm check may-start && uwsm select;then
+	exec uwsm start default
+fi 
+EOF
+}
+
+# Setup gnome
+gnome_setup(){
+	# TODO test
+	gnome_package=("gnome" "xdg-desktop-portal-gnome")
+	gnome_package_complete=("gnome-extra")
+
+	install_packages ${gnome_package[@]}
+	services+=(gdm.service)
+	
+	user_interaction_print "Do you want to add additional gnome applications [y/N]"
+	read $install_gnome_app
+	
+	if [[ $install_gnome_app =~ $regex_yes ]];then
+		install_packages ${gnome_package_complete[@]}
+	fi
+	
+	info_print "Gnome installation succeed"
+	return 0
+}
+
+# Setup kde plasma
+kde_setup(){
+	# TODO test
+	info_print "Installing kde packages"
+	
+	kde_package=( "plasma-desktop" "xdg-desktop-portal-kde" "plasma-meta")
+	kde_package_complete=("kde-applications-meta")
+	
+	install_packages ${kde_package[@]}
+	
+	user_interaction_print "Do you want to add additional kde applications [y/N]"
+	read $install_kde_app
+	
+	if [[ $install_kde_app =~ $regex_yes ]];then
+		install_packages ${kde_package_complete[@]}
+	fi
+	
+	info_print "Kde installation succeed"
+	return 0
 }
 
 # Setup the gpu driver
@@ -428,32 +510,12 @@ gpu_driver_setup(){
 	
 	# TODO install gpu drivers
 	
-}
-
-hyprland_setup(){
-	# TODO install & setup hyprland
-	hyprland_package=("uwsm" "hyprland" "hyprland-protocols" "xdg-desktop-portal-hyprland" "hyprpaper")
-
-	
-	# 
-	cat > /mnt/home/$username/.profile << EOF 
-if uwsm check may-start && uwsm select;then
-	exec uwsm start default
-fi 
-EOF
-}
-
-gnome_setup(){
-	# TODO install & setup gnome
-	gnome_package=("gnome" "xdg-desktop-portal-gnome")
-	gnome_package_complete=("gnome-extra")
-}
-
-kde_setup(){
-	# TODO install & setup kde plasma
-	kde_package=( "plasma-desktop" "xdg-desktop-portal-kde")
-	kde_package_complete=("plasma-meta" "kde-applications-meta")
-	
+	# NVIDIA
+	# enable drm kernel mode setting
+	# set NVreg_PreserveVideoMemoryAllocations=1
+	# systemctl enable nvidia-suspend.service
+	# systemctl enable nvidia-hibernate.service
+	# systemctl enable nvidia-resume.service
 	
 }
 
@@ -522,10 +584,11 @@ fi
 # Inintialize pacman
 print_info "Installing base packages"
 pacstrap -K /mnt ${package_list[*]}
-
+separator_print
 
 # Select the hostname
 until hostname_selector; do : ; done
+separator_print
 
 # Create the hosts file
 cat > /mnt/etc/hosts <<EOF
@@ -567,7 +630,7 @@ arch-chroot /mnt /bin/bash -e <<EOF
 	# Add command not found script from pkgfile to the global bashrc
 	echo "source /usr/share/doc/pkgfile/command-not-found.bash" >> /etc/skel/.bashrc
 	
-	# Add .bash file to root directory
+	# Add .bash* file to root directory
 	cp /etc/skel/.bash* ~
 	
 	# Disable passim (used in fwupd) 
@@ -584,13 +647,49 @@ arch-chroot /mnt /bin/bash -e <<EOF
 
 EOF
 
+
+# TODO test user creation
+# Set root password
+separator_print
+info_print "Setting up root password"
+echo "root:$rootpwd" | arch-chroot /mnt chpasswd
+
+# Add user
+if [[ $create_user =~ $regex_yes ]]; then
+	info_print "Setting up a user : $username"
+	
+	# Add user and set its password
+	arch-chroot /mnt useradd -m -G wheel -s /bin/bash $username
+	echo "${username}:${userpwd}" | arch-chroot /mnt chpasswd
+	
+	# Create user directory with xdg-user-dirs-update
+	arch-chroot /mnt sudo -H -u $username bash -c 'xdg-user-dirs-update'
+	# Give wheel group administrator rights and set the timeout for password to 10min
+	echo "%wheel ALL=(ALL:ALL) ALL" > /mnt/etc/sudoers.d/groups
+	echo "Defaults timestamp_timeout=10" >> /mnt/etc/sudoers.d/groups
+	
+	cat > /mnt/home/${username}/.profile << EOF
+xdg-user-dirs-update
+EOF
+
+	# Make ~/.bashrc to execute ~/.profile
+	echo ". $$HOME/.profile" >> /mnt/home/${username}/.bashrc
+	
+fi
+
 # Install a graphical environment
+separator_print
 until graphical_environment_setup; do : ; done
 
+# Packages setup
+separator_print
+info_print "Set up installed packages"
 
 # Disable iptables.service beacause it is not compatible with ufw
 systemctl disable iptables.service --root=/mnt
+
 # TODO Configuring all services installed by pacstrap
+# Enable systemd service from pacman packages
 for service in "${services[@]}"; do
 	systemctl enable "$service" --root=/mnt
 done
@@ -606,14 +705,10 @@ cat > /mnt/etc/xdg/reflector/reflector.conf << EOF
 --latest 10
 EOF
 
-# TODO set users and passwords
+# Change config pacman config
+sed -i 's/#Color/Color\nILoveCandy/g' /etc/pacman.conf
 
-cat > /mnt/home/${username}/.profile << EOF
-xdg-user-dirs-update
-EOF
-
-# Make ~/.bashrc to execute ~/.profile
-echo ". $$HOME/.profile" >> /mnt/home/${username}/.bashrc
+separator_print
 
 # Ask the user if the script should stop the computer
 user_interaction_print "Shutdown the computer now ? y/N"
@@ -628,6 +723,4 @@ fi
 
 print_info "Script has finished, you can now restart your computer."
 exit 0
-
-
 

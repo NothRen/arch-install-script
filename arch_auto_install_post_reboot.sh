@@ -1,5 +1,22 @@
 #!/bin/bash
 
+fortnite=("Aa" "bb")
+
+function_name() {
+	arr=("$@")
+   	echo "Parameter #1 is $@"
+   	for a in "${arr[*]}"; do
+		echo "$a"
+	done
+}
+
+for service in "${services[@]}"; do
+	systemctl enable "$service" --root=/mnt
+done
+
+function_name "${fortnite[@]}"
+
+exit 0
 # Enable the firewall
 sudo ufw enable
 sudo ufw default deny incoming
