@@ -287,7 +287,9 @@ partition_disk(){
 	fi
 
 	# Remove all partition from disk
-	dd if=/dev/zero of=$disk_path bs=512 count=1 conv=notrunc
+	# TODO Check if this work with existing partitions
+	#dd if=/dev/zero of=$disk_path bs=512 count=1 conv=notrunc
+	blkdiscard -f $disk_path
 
 	info_print "Creating the partition"
 	# Create the partition with with fdisk
@@ -400,10 +402,10 @@ For wifi you can use ${ITALIC}iwctl${RESET}${BOLD} :
 graphical_environment_selector(){
 	user_interaction_print "Which graphical environment do you want :"
 	echo "
-	1) None (Default)
-	2) Hyprland
-	3) Gnome
-	4) Kde plasma"
+1) None (Default)
+2) Hyprland
+3) Gnome
+4) Kde plasma"
 	
 	read graphical_selected
 	
