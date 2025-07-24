@@ -313,11 +313,11 @@ partition_disk(){
 
 	info_print "Formatting the partition"
 	#  Format the partitions 
-	mkfs.fat -F 32 $efi_partition
+	mkfs.fat -F 32 "/dev/${efi_partition}"
 	
-	mkfs.btrfs $root_partition
+	mkfs.btrfs "/dev/${root_partition}"
 	
-	mkswap $swap_partition
+	mkswap "/dev/${swap_partition}"
 
 	
 	# Check if installed disk is a ssd, if yes enable weekly trim
