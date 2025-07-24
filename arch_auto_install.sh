@@ -13,7 +13,7 @@ BLUE='\e[34m'
 RESET='\e[0m'
 
 # Needed packages
-package_list=("base" "KERNEL" "linux-firmware" "KERNEL HEADERS" "base-devel" "nano" "git" "cmake" "meson" "networkmanager" "ufw" "sudo" "btrfs-progs" "bash-completion" "pkgfile" "fwupd" "smartmontools" "man-db" "man-pages" "grub" "efibootmgr" "dkms" "reflector" "ntfs-3g" "lynis" "7zip" "xdg_user_dirs" "pacman-contrib" "util-linux")
+package_list=("base" "KERNEL" "linux-firmware" "KERNEL HEADERS" "base-devel" "nano" "git" "cmake" "meson" "networkmanager" "ufw" "sudo" "btrfs-progs" "bash-completion" "pkgfile" "fwupd" "smartmontools" "man-db" "man-pages" "grub" "efibootmgr" "dkms" "reflector" "ntfs-3g" "lynis" "7zip" "xdg-user-dirs" "pacman-contrib" "util-linux")
 # service
 services=(NetworkManager.service reflector.timer ufw.service pkgfile-update.timer fwupd.service fwupd-refresh.timer)
 
@@ -295,7 +295,7 @@ partition_disk(){
 	# Create the partition with with fdisk
 	if [ ! -z "$swap_size" ] && [ ! $swap_size == 0 ]; then
 		(echo "n"; echo "p"; echo ""; echo ""; echo "+1G"; echo "t"; echo "uefi"; \
-		echo "n"; echo "p"; echo ""; echo ""; echo "+${swap_size}G"; echo "t"; echo "swap"; \
+		echo "n"; echo "p"; echo ""; echo ""; echo "+${swap_size}G"; echo "t"; echo ""; echo "swap"; \
 		echo "n"; echo "p"; echo ""; echo ""; echo "${root_size}"; echo "w") | fdisk $disk_path
 	else
 		(echo "n"; echo "p"; echo ""; echo ""; echo "+1G"; echo "t"; echo "uefi"; \
