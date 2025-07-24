@@ -449,24 +449,24 @@ graphical_environment_setup(){
 	
 }
 
+# Setup hyprland
 hyprland_setup(){
-	# TODO install & setup hyprland
+	info_print "Installing hyprland packages"
+
 	hyprland_package=("uwsm" "hyprland" "hyprland-protocols" "xdg-desktop-portal-hyprland" "hyprpaper" "kitty" "sddm")
 	
 	install_packages ${hyprland_package[@]}
 	services+=(sddm.service)
 	
+	# Ask to install my config file
 	
-	# 
-#	cat > /mnt/home/$username/.profile << EOF 
-#if uwsm check may-start && uwsm select;then
-#	exec uwsm start default
-#fi 
-#EOF
+	info_print "Hyprland installation succeed"
+	return 0
 }
 
 # Setup gnome
 gnome_setup(){
+	info_print "Installing gnome packages"
 	gnome_package=("gnome" "xdg-desktop-portal-gnome" "gnome-tweaks")
 	gnome_package_complete=("gnome-extra")
 
@@ -488,7 +488,7 @@ gnome_setup(){
 kde_setup(){
 	info_print "Installing kde packages"
 	
-	kde_package=( "plasma-desktop" "xdg-desktop-portal-kde" "plasma-meta" "sddm" "konsole")
+	kde_package=( "plasma-desktop" "xdg-desktop-portal-kde" "plasma-meta" "sddm" "konsole" "dolphin")
 	kde_package_complete=("kde-applications-meta")
 	
 	install_packages ${kde_package[@]}
@@ -594,7 +594,7 @@ if [ -n "$swap_partition" ]; then
 fi
 
 # Inintialize pacman
-print_info "Installing base packages"
+info_print "Installing base packages"
 pacstrap -K /mnt ${package_list[*]}
 separator_print
 
@@ -610,7 +610,7 @@ cat > /mnt/etc/hosts <<EOF
 EOF
 
 # Generate fstab file
-print_info "Generatin fstab file"
+info_print "Generating fstab file"
 genfstab -U /mnt >> /mnt/etc/fstab
 
 
@@ -730,7 +730,7 @@ separator_print
 user_interaction_print "Shutdown the computer now ? y/N"
 read restart_answer
 if [[ $restart_answer =~ $regex_yes ]];then
-	print_info "Shutdown"
+	info_print "Shutdown"
 	umount -R /mnt
 	shutdown now
 fi
