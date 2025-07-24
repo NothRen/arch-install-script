@@ -281,11 +281,11 @@ partition_disk(){
 		root_size="+${root_size}G"
 	fi
 	
-	if [ "$is_arch"="false" ];then
+	if [ $is_arch -eq 0 ];then
 		info_print "Skipping partitionning because the script does not run on arch."
 		return 0
 	fi
-	
+
 	# Remove all partition from disk
 	dd if=/dev/zero of=$disk_path bs=512 count=1 conv=notrunc
 
@@ -527,13 +527,13 @@ info_print "Script start"
 # Check if the distrib is arch, if it is not print an error
 
 if ! cat /etc/lsb-release | grep "Arch"&>/dev/null ;then
-	is_arch="false"
+	is_arch=0
 	if [ -z ${check_arch+x} ];then
 		error_print "This script work only on arch live iso. If you want to run it anyway add ${ITALIC}check_arch=0${RESET}${BOLD} before running the script (ex : $ ${ITALIC}check_arch=0 ./arch_auto_install.sh ${RESET})"
 	exit 1
 	fi
 else
-	is_arch="true"
+	is_arch=1
 fi
 
 # Check if bios is supported
@@ -571,8 +571,6 @@ separator_print
 # Partition disk
 until partition_disk; do : ; done
 separator_print
-
-exit # TODO remove
 
 # Mount the partitions
 mount $root_partition /mnt
