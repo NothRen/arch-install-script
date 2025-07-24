@@ -64,7 +64,6 @@ check_bios_mode(){
 # Choose keyboard layout
 keyboard_layout_selector(){
 	# Not working
-	# TODO test this function
 	user_interaction_print "What keyboard layout do you want ? Leave empty for french, else enter your 2 letters country code (CH for switzerland, IT for italia ...) to search in existing layout. Then enter your choosen layout (leave empty to select fr-latin1)"
 	read layout
 	
@@ -118,7 +117,6 @@ microcode_selector(){
 
 # Choose root password 
 root_pwd_selector(){
-	# TODO test
 	# Select the root password
 	user_interaction_print "Type the root password : "
 	read -r -s rootpwd
@@ -140,7 +138,6 @@ root_pwd_selector(){
 }
 # Choose to add an user or not
 user_pwd_selector(){
-	# TODO test
 	user_interaction_print "Do you want to create another user ? [y/N]"
 	read create_user
 	
@@ -190,7 +187,6 @@ user_pwd_selector(){
 
 # Partition and format the disk
 partition_disk(){
-	# TODO test if this function work well
 	
 	disk=""
 	disk_total_space=""
@@ -287,8 +283,6 @@ partition_disk(){
 	fi
 
 	# Remove all partition from disk
-	# TODO Check if this work with existing partitions
-	#dd if=/dev/zero of=$disk_path bs=512 count=1 conv=notrunc
 	blkdiscard -f $disk_path
 
 	info_print "Creating the partition"
@@ -698,7 +692,6 @@ info_print "Set up installed packages"
 # Disable iptables.service beacause it is not compatible with ufw
 systemctl disable iptables.service --root=/mnt
 
-# TODO Configuring all services installed by pacstrap
 # Enable systemd service from pacman packages
 for service in "${services[@]}"; do
 	systemctl enable "$service" --root=/mnt
