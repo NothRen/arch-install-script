@@ -206,7 +206,7 @@ partition_disk(){
 	
 	# Read the answer and verify if the disk exist
 	read selected_disk
-	if ! (lsblk | grep "${selected_disk}.*disk"&> /dev/null) || ! (ls /dev/${selected_disk}&> /dev/null); then
+	if [ -z ${selected_disk} ] || ! (lsblk | grep "${selected_disk}.*disk"&> /dev/null) || ! (ls /dev/${selected_disk}&> /dev/null); then
 		error_print "This disk doesn't exist"
 		return 1
 	fi
@@ -317,7 +317,9 @@ partition_disk(){
 	
 	mkfs.btrfs "/dev/${root_partition}"
 	
-	mkswap "/dev/${swap_partition}"
+	if ! [ -z $swap_partition ];then
+		mkswap "/dev/${swap_partition}"
+	fi
 
 	
 	# Check if installed disk is a ssd, if yes enable weekly trim
@@ -572,8 +574,8 @@ until partition_disk; do : ; done
 separator_print
 
 # Mount the partitions
-mount $root_partition /mnt
-mount --mkdir $efi_partition /mnt/boot
+mount "/dev/${root_partition}" /mnt
+mount --mkdir "/dev/${efi_partition}" /mnt/boot
 
 # Init the swap
 if [ -n "$swap_partition" ]; then
