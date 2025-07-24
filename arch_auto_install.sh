@@ -65,7 +65,7 @@ check_bios_mode(){
 keyboard_layout_selector(){
 	# Not working
 	# TODO test this function
-	user_interaction_print "What keyboard layout do you want ? Leave empty for french, else enter your 2 letters country code (CH for switzerland, IT for italia ...) to search in existing layout. Then enter your choosen layout"
+	user_interaction_print "What keyboard layout do you want ? Leave empty for french, else enter your 2 letters country code (CH for switzerland, IT for italia ...) to search in existing layout. Then enter your choosen layout (leave empty to select fr-latin1)"
 	read layout
 	
 	case "$layout" in
@@ -87,7 +87,7 @@ keyboard_layout_selector(){
 
 # Choose system language
 system_language_selector(){
-	user_interaction_print "What is your system language ? Leave empty for french, else enter your 2 letters country code to search in existing language. Then enter your choosen language"
+	user_interaction_print "What is your system language ? Leave empty for french, else enter your 2 letters country code to search in existing language. Then enter your choosen language (leave empty to select fr_FR.UTF-8 UTF-8)"
 	read lang
 	
 	case "$lang" in
@@ -152,7 +152,7 @@ user_pwd_selector(){
 	fi
 	
 	user_interaction_print "Enter the username of your new user : "
-	read -r -s username
+	read username
 	
 	if [ -z "$username" ]; then
 		error_print "Please enter a non empty username"
@@ -160,7 +160,7 @@ user_pwd_selector(){
 	fi
 	
 	user_interaction_print "Should your user use the same password as root ? [y/N]"
-	read -r -s user_same_pwd
+	read user_same_pwd
 	if [[ $user_same_pwd =~ $regex_yes ]]; then
 		
 		info_print "Same password used"
@@ -177,7 +177,7 @@ user_pwd_selector(){
 		return 1
 	fi
 
-	user_interaction_print "Type the password ${username} again : "
+	user_interaction_print "Type the password for ${username} again : "
 	read -r -s userpwd_check
 	
 	if [ "$userpwd" != "$userpwd_check" ]; then
@@ -231,6 +231,7 @@ partition_disk(){
 	read swap_size
 	if [ -z "$swap_size" ] || [ $swap_size -eq 0 ]; then
 		info_print "Not using swap"
+		swap_size=0
 	else
 		if ! [[ $swap_size =~ $regex_number ]] ; then
 			error_print "Please enter a valid number"
@@ -526,13 +527,13 @@ info_print "Script start"
 # Check if the distrib is arch, if it is not print an error
 
 if ! cat /etc/lsb-release | grep "Arch"&>/dev/null ;then
-	is_arch=false
+	is_arch="false"
 	if [ -z ${check_arch+x} ];then
 		error_print "This script work only on arch live iso. If you want to run it anyway add ${ITALIC}check_arch=0${RESET}${BOLD} before running the script (ex : $ ${ITALIC}check_arch=0 ./arch_auto_install.sh ${RESET})"
 	exit 1
 	fi
 else
-	is_arch=true
+	is_arch="true"
 fi
 
 # Check if bios is supported
