@@ -257,7 +257,7 @@ partition_disk(){
 	
 	# Ask the user for confirmation before writing to disk
 	user_interaction_print "On ${disk_path} it will create :"
-	echo "A 1GiB efi partition"
+	echo "A 1Gib efi partition"
 	
 	if [ ! -z "$swap_size" ] && [ ! $swap_size -eq 0 ]; then
 		echo "A ${swap_size}Gib swap partition"
@@ -454,13 +454,15 @@ hyprland_setup(){
 	hyprland_package=("uwsm" "hyprland" "hyprland-protocols" "xdg-desktop-portal-hyprland" "hyprpaper" "kitty" "sddm")
 	
 	install_packages ${hyprland_package[@]}
+	services+=(sddm.service)
+	
 	
 	# 
-	cat > /mnt/home/$username/.profile << EOF 
-if uwsm check may-start && uwsm select;then
-	exec uwsm start default
-fi 
-EOF
+#	cat > /mnt/home/$username/.profile << EOF 
+#if uwsm check may-start && uwsm select;then
+#	exec uwsm start default
+#fi 
+#EOF
 }
 
 # Setup gnome
@@ -608,6 +610,7 @@ cat > /mnt/etc/hosts <<EOF
 EOF
 
 # Generate fstab file
+print_info "Generatin fstab file"
 genfstab -U /mnt >> /mnt/etc/fstab
 
 
@@ -680,7 +683,7 @@ xdg-user-dirs-update
 EOF
 
 	# Make ~/.bashrc to execute ~/.profile
-	echo ". $$HOME/.profile" >> /mnt/home/${username}/.bashrc
+	echo ". \$HOME/.profile" >> /mnt/home/${username}/.bashrc
 	
 fi
 
@@ -716,7 +719,7 @@ EOF
 sed -i 's/#Color/Color\nILoveCandy/g' /mnt/etc/pacman.conf
 
 # 
-cat > /mnt/etc/pacman.conf << EOF
+cat >> /mnt/etc/pacman.conf << EOF
 [multilib]
 Include = /etc/pacman.d/mirrorlist
 EOF
