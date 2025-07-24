@@ -426,7 +426,7 @@ graphical_environment_selector(){
 graphical_environment_setup(){
 
 	# Graphical packages
-	global_graphical_packages=("wayland" "xorg-xwayland" "xdg-desktop-portal" "qt6-wayland" "qt5-wayland" "gtk3" "gtk4" "wl-clip-persist" "pipewire" "pipewire-audio")
+	global_graphical_packages=("wayland" "xorg-xwayland" "xdg-desktop-portal" "qt6-wayland" "qt5-wayland" "gtk3" "gtk4" "wl-clip-persist" "pipewire" "pipewire-audio" "pipewire-alsa" "pipewire-pulse")
 	
 	graphical_package_app=("firefox")
 	
@@ -451,7 +451,7 @@ graphical_environment_setup(){
 
 hyprland_setup(){
 	# TODO install & setup hyprland
-	hyprland_package=("uwsm" "hyprland" "hyprland-protocols" "xdg-desktop-portal-hyprland" "hyprpaper")
+	hyprland_package=("uwsm" "hyprland" "hyprland-protocols" "xdg-desktop-portal-hyprland" "hyprpaper" "kitty" "sddm")
 	
 	install_packages ${hyprland_package[@]}
 	
@@ -465,8 +465,7 @@ EOF
 
 # Setup gnome
 gnome_setup(){
-	# TODO test
-	gnome_package=("gnome" "xdg-desktop-portal-gnome")
+	gnome_package=("gnome" "xdg-desktop-portal-gnome" "gnome-tweaks")
 	gnome_package_complete=("gnome-extra")
 
 	install_packages ${gnome_package[@]}
@@ -485,10 +484,9 @@ gnome_setup(){
 
 # Setup kde plasma
 kde_setup(){
-	# TODO test
 	info_print "Installing kde packages"
 	
-	kde_package=( "plasma-desktop" "xdg-desktop-portal-kde" "plasma-meta" "sddm")
+	kde_package=( "plasma-desktop" "xdg-desktop-portal-kde" "plasma-meta" "sddm" "konsole")
 	kde_package_complete=("kde-applications-meta")
 	
 	install_packages ${kde_package[@]}
@@ -614,7 +612,6 @@ genfstab -U /mnt >> /mnt/etc/fstab
 
 
 # TODO add an option to choose the timezone OR use (http://ip-api.com/line?fields=timezone)
-# TODO check if the following work
 arch-chroot /mnt /bin/bash -e <<EOF
 	
 	# Set timezone to Paris
@@ -659,8 +656,6 @@ arch-chroot /mnt /bin/bash -e <<EOF
 
 EOF
 
-
-# TODO test user creation
 # Set root password
 separator_print
 info_print "Setting up root password"
@@ -720,16 +715,20 @@ EOF
 # Change pacman config
 sed -i 's/#Color/Color\nILoveCandy/g' /mnt/etc/pacman.conf
 
-separator_print
+# 
+cat > /mnt/etc/pacman.conf << EOF
+[multilib]
+Include = /etc/pacman.d/mirrorlist
+EOF
 
+
+separator_print
 # Ask the user if the script should stop the computer
 user_interaction_print "Shutdown the computer now ? y/N"
 read restart_answer
-if [[ restart_answer =~ $regex_yes ]];then
-	# TODO test this and remove exit
+if [[ $restart_answer =~ $regex_yes ]];then
 	print_info "Shutdown"
 	umount -R /mnt
-	exit 0
 	shutdown now
 fi
 
