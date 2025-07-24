@@ -63,6 +63,7 @@ check_bios_mode(){
 
 # Choose keyboard layout
 keyboard_layout_selector(){
+	# Not working
 	# TODO test this function
 	user_interaction_print "What keyboard layout do you want ? Leave empty for french, else enter your 2 letters country code (CH for switzerland, IT for italia ...) to search in existing layout. Then enter your choosen layout"
 	read layout
@@ -70,11 +71,12 @@ keyboard_layout_selector(){
 	case "$layout" in
 		"") keyboard_lang="fr-latin1";;
 		* )
-			if ! localectl list-keymaps | grep -Fxq "$layout"; then
+			if ! $(localectl list-keymaps | grep -Fxq "$layout"); then
+				info_print "Corresponding keymaps :"
 				localectl list-keymaps | grep -ie "$layout"
 				return 1
 			else
-				info_print "Existing layout : "
+				#info_print "Existing layout : "
 				keyboard_lang=$layout
 			fi
 	esac
@@ -91,7 +93,7 @@ system_language_selector(){
 	case "$lang" in
 		"") system_lang="fr_FR.UTF-8 UTF-8";;
 		* )
-			if ! cat /etc/locale.gen  | grep -Fxq "# $lang"; then
+			if ! cat /etc/locale.gen  | grep -Fxq "#$lang"; then
 				info_print "Existing language : "
 				cat /etc/locale.gen | grep -ie "$lang"
 				return 1
@@ -218,9 +220,9 @@ partition_disk(){
 	disk_total_space=$(($(lsblk -bo NAME,SIZE | grep "$selected_disk" | head -n1 | grep -oE "[0-9,]{10,}")/1024/1024/1024))
 	cmd_res=$?
 	
-	# Check if the disk is more than 100Gib
-	if [ $cmd_res -eq 1 ] || [ $disk_total_space -lt 100 ] ; then 
-		error_print "Your disk must be at least 100Gib"
+	# Check if the disk is more than 30Gib
+	if [ $cmd_res -eq 1 ] || [ $disk_total_space -lt 30 ] ; then 
+		error_print "Your disk must be at least 30Gib"
 		exit 1
 	fi
 
