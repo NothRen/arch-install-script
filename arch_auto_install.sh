@@ -294,10 +294,10 @@ partition_disk(){
 	if [ ! -z "$swap_size" ] && [ ! $swap_size == 0 ]; then
 		(echo "n"; echo "p"; echo ""; echo ""; echo "+1G"; echo "t"; echo "uefi"; \
 		echo "n"; echo "p"; echo ""; echo ""; echo "+${swap_size}G"; echo "t"; echo "swap"; \
-		echo "n"; echo "p"; echo ""; echo ""; echo "${root_size}"; echo "w") | fdsik $disk_path
+		echo "n"; echo "p"; echo ""; echo ""; echo "${root_size}"; echo "w") | fdisk $disk_path
 	else
 		(echo "n"; echo "p"; echo ""; echo ""; echo "+1G"; echo "t"; echo "uefi"; \
-		echo "n"; echo "p"; echo ""; echo ""; echo "${root_size}"; echo "w") | fdsik $disk_path
+		echo "n"; echo "p"; echo ""; echo ""; echo "${root_size}"; echo "w") | fdisk $disk_path
 	fi
 	
 	partitions=( $(lsblk "$disk_path" | grep -oE "$selected_disk[^ ]*\w") )
