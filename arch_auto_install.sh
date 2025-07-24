@@ -431,8 +431,12 @@ graphical_environment_setup(){
 	graphical_package_app=("firefox")
 	
 	if [ "$graphical_env" != "none" ]; then
+		info_print "Installing global graphical packages"
 		# install global graphical packages
 		install_packages ${global_graphical_packages[@]}
+		
+		install_packages ${graphical_package_app[@]} 
+		
 		gpu_driver_setup
 	fi
 
@@ -448,7 +452,8 @@ graphical_environment_setup(){
 hyprland_setup(){
 	# TODO install & setup hyprland
 	hyprland_package=("uwsm" "hyprland" "hyprland-protocols" "xdg-desktop-portal-hyprland" "hyprpaper")
-
+	
+	install_packages ${hyprland_package[@]}
 	
 	# 
 	cat > /mnt/home/$username/.profile << EOF 
@@ -483,10 +488,11 @@ kde_setup(){
 	# TODO test
 	info_print "Installing kde packages"
 	
-	kde_package=( "plasma-desktop" "xdg-desktop-portal-kde" "plasma-meta")
+	kde_package=( "plasma-desktop" "xdg-desktop-portal-kde" "plasma-meta" "sddm")
 	kde_package_complete=("kde-applications-meta")
 	
 	install_packages ${kde_package[@]}
+	services+=(sddm.service)
 	
 	user_interaction_print "Do you want to add additional kde applications [y/N]"
 	read $install_kde_app
@@ -495,13 +501,16 @@ kde_setup(){
 		install_packages ${kde_package_complete[@]}
 	fi
 	
+	
+	
 	info_print "Kde installation succeed"
 	return 0
 }
 
 # Setup the gpu driver
 gpu_driver_setup(){
-	
+
+	info_print "Setup gpu driver"
 	# Check which gpu is here
 	gpus=$(lspci | grep VGA)
 	nvidia=$(echo $gpus | grep -i nvidia)
@@ -584,7 +593,6 @@ if [ -n "$swap_partition" ]; then
 	swapon $swap_partition
 fi
 
-
 # Inintialize pacman
 print_info "Installing base packages"
 pacstrap -K /mnt ${package_list[*]}
@@ -645,7 +653,7 @@ arch-chroot /mnt /bin/bash -e <<EOF
 	mkinitcpio -P
 	
 	# Install grub
-	grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=arch
+	grub-install --target=x86_64-efi --efi-directory=/boot/ --bootloader-id=arch
 	
 	grub-mkconfig -o /boot/grub/grub.cfg
 
@@ -709,8 +717,8 @@ cat > /mnt/etc/xdg/reflector/reflector.conf << EOF
 --latest 10
 EOF
 
-# Change config pacman config
-sed -i 's/#Color/Color\nILoveCandy/g' /etc/pacman.conf
+# Change pacman config
+sed -i 's/#Color/Color\nILoveCandy/g' /mnt/etc/pacman.conf
 
 separator_print
 
@@ -725,6 +733,6 @@ if [[ restart_answer =~ $regex_yes ]];then
 	shutdown now
 fi
 
-print_info "Script has finished, you can now restart your computer."
+info_print "Script has finished, you can now restart your computer."
 exit 0
 
