@@ -302,13 +302,13 @@ partition_disk(){
 	
 	partitions=( $(lsblk "$disk_path" | grep -oE "$selected_disk[^ ]*\w") )
 
-	efi_partition=$partitions[0]
+	efi_partition=${partitions[0]}
 
 	if [ ! -z "$swap_size" ] && [ ! $swap_size == 0 ]; then
-		swap_partition=$partitions[1]
-		root_partition=$partitions[2]
+		swap_partition=${partitions[1]}
+		root_partition=${partitions[2]}
 	else 
-		root_partition=$partitions[1]
+		root_partition=${partitions[1]}
 	fi
 
 	info_print "Formatting the partition"
@@ -323,7 +323,6 @@ partition_disk(){
 	# Check if installed disk is a ssd, if yes enable weekly trim
 	if [ $(cat /sys/block/${selected_disk}/queue/rotational) -eq 0 ];then
 		services+=(fstrim.timer)
-		echo $services[*]
 	fi
 
 	return 0
