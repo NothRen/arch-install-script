@@ -1,6 +1,11 @@
 # Arch auto install script 
 
-
+# Usage : 
+When boot in arch live iso : 
+```
+$ curl https://raw.githubusercontent.com/NothRen/arch-install-script/refs/heads/main/arch_auto_install.sh > temp.txt
+$ bash temp.txt
+```
 
 ### Todo ?
 
