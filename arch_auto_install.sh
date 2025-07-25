@@ -422,7 +422,7 @@ graphical_environment_setup(){
 	# Graphical packages
 	global_graphical_packages=("wayland" "xorg-xwayland" "xdg-desktop-portal" "qt6-wayland" "qt5-wayland" "gtk3" "gtk4" "wl-clip-persist" "pipewire" "pipewire-audio" "pipewire-alsa" "pipewire-pulse" "alsa-utils")
 	
-	graphical_package_app=("firefox" "gnome-disk-utility" "udisks2-btrfs" "code")
+	graphical_package_app=("firefox" "gnome-disk-utility" "udisks2-btrfs" "code" "gnome-boxes")
 	
 	if [ "$graphical_env" != "none" ]; then
 		info_print "Installing global graphical packages"
@@ -431,7 +431,9 @@ graphical_environment_setup(){
 		
 		install_packages ${graphical_package_app[@]} 
 		
-		services+=(pipewire-pulse.service)
+		# TODO test
+		systemctl enable --user pipewire-pulse.service
+		#services+=(pipewire-pulse.service)
 		
 		gpu_driver_setup
 	fi
@@ -540,7 +542,7 @@ EOF
 	# Ask to install my config file
 	
 	# Install silent theme for sddm https://github.com/uiriansan/SilentSDDM
-	curl https://github.com/uiriansan/SilentSDDM/archive/refs/tags/v1.2.1.tar.gz > silent.tar.gz
+	curl -L https://github.com/uiriansan/SilentSDDM/archive/refs/tags/v1.2.1.tar.gz > silent.tar.gz
 	mkdir -p /mnt/usr/share/sddm/themes/silent
 	tar -xf silent.tar.gz -C /mnt/usr/share/sddm/themes/silent/
 	cp /mnt/usr/share/sddm/themes/silent/fonts/* /usr/share/fonts
