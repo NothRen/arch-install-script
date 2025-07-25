@@ -10,6 +10,7 @@ $ curl https://raw.githubusercontent.com/NothRen/arch-install-script/refs/heads/
 $ bash temp.txt
 ```
 
+
 ### Todo ?
 
 - Add an option to not delete other partition and to choose an existing efi partition
