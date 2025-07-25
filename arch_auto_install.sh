@@ -465,11 +465,13 @@ gpu_driver_setup(){
 	fi
 	
 	if ! [ -z $amd ];then
+		echo ""
 		# TODO
 		# amd_gpu_driver_setup
 	fi
 	
 	if ! [ -z $intel ];then
+		echo ""
 		# TODO
 		# intel_gpu_driver_setup
 	fi
