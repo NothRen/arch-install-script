@@ -15,7 +15,7 @@ RESET='\e[0m'
 # Needed packages
 package_list=("base" "KERNEL" "linux-firmware" "KERNEL HEADERS" "base-devel" "nano" "git" "cmake" "meson" "networkmanager" "ufw" "sudo" "btrfs-progs" "bash-completion" "pkgfile" "fwupd" "smartmontools" "man-db" "man-pages" "grub" "efibootmgr" "dkms" "reflector" "ntfs-3g" "lynis" "7zip" "xdg-user-dirs" "pacman-contrib" "util-linux")
 # service
-services=(NetworkManager.service reflector.timer ufw.service pkgfile-update.timer fwupd.service fwupd-refresh.timer)
+services=(NetworkManager.service reflector.timer ufw.service pkgfile-update.timer fwupd.service fwupd-refresh.timer pacman-filesdb-refresh.timer)
 
 # System 
 system_lang="fr_FR.UTF-8 UTF-8"
@@ -420,9 +420,9 @@ graphical_environment_selector(){
 graphical_environment_setup(){
 
 	# Graphical packages
-	global_graphical_packages=("wayland" "xorg-xwayland" "xdg-desktop-portal" "qt6-wayland" "qt5-wayland" "gtk3" "gtk4" "wl-clip-persist" "pipewire" "pipewire-audio" "pipewire-alsa" "pipewire-pulse")
+	global_graphical_packages=("wayland" "xorg-xwayland" "xdg-desktop-portal" "qt6-wayland" "qt5-wayland" "gtk3" "gtk4" "wl-clip-persist" "pipewire" "pipewire-audio" "pipewire-alsa" "pipewire-pulse" "alsa-utils")
 	
-	graphical_package_app=("firefox")
+	graphical_package_app=("firefox" "gnome-disk-utility" "udisks2-btrfs" "code")
 	
 	if [ "$graphical_env" != "none" ]; then
 		info_print "Installing global graphical packages"
@@ -430,6 +430,8 @@ graphical_environment_setup(){
 		install_packages ${global_graphical_packages[@]}
 		
 		install_packages ${graphical_package_app[@]} 
+		
+		services+=(pipewire-pulse.service)
 		
 		gpu_driver_setup
 	fi
@@ -443,16 +445,103 @@ graphical_environment_setup(){
 	
 }
 
+# Setup the gpu driver
+gpu_driver_setup(){
+
+	info_print "Setup gpu driver"
+	# Check which gpu is here
+	gpus=$(lspci | grep VGA)
+	nvidia=$(echo $gpus | grep -i nvidia)
+	intel=$(echo $gpus | grep -i intel)
+	amd=$(echo $gpus | grep -i amd)
+	
+	if ! [ -z $nvidia ];then
+		nvidia_card_number=$(lspci | grep VGA | grep -i nvidia | grep -E "(RTX|GTX) ([0-9]{4})" | grep -oE "([0-9]{4})")
+		if [ $nvidia_card_number -lt 1650 ];then
+			error_print "This script only support nvidia gpu newer than GeForce GTX 1650."
+			return 1
+		fi
+		nvidia_gpu_driver_setup
+	fi
+	
+	if ! [ -z $amd ];then
+		# TODO
+		# amd_gpu_driver_setup
+	fi
+	
+	if ! [ -z $intel ];then
+		# TODO
+		# intel_gpu_driver_setup
+	fi
+	
+	return 0
+}
+
+# Install nvidia gpu drivers
+nvidia_gpu_driver_setup(){
+	# TODO Test if this is working
+	nvidia_driver_packages=("nvidia-open-dkms" "nvidia-utils" "lib32-nvidia-utils" "vulkan-icd-loader" "lib32-vulkan-icd-loader" "nvidia-settings")
+	
+	install_packages ${nvidia_driver_packages[@]}
+	services+=(nvidia-suspend.service)
+	services+=(nvidia-hibernate.service)
+	services+=(nvidia-resume.service)
+	cat >> /etc/environment << EOF
+GBM_BACKEND=nvidia-drm
+__GLX_VENDOR_LIBRARY_NAME=nvidia	
+EOF
+
+	# NVreg_DynamicPowerManagement=0x02 and NVreg_DynamicPowerManagementVideoMemoryThreshold=100 can be useful for laptop
+
+	# Enable parameters for the nvidia kernel modules (https://wiki.archlinux.org/title/NVIDIA/Tips_and_tricks#Preserve_video_memory_after_suspend)
+	echo "options nvidia NVreg_PreserveVideoMemoryAllocations=1 NVreg_TemporaryFilePath=/var/tmp NVreg_UsePageAttributeTable=1 NVreg_DynamicPowerManagement=0x02" >> /mnt/etc/modprobe.d/nvidia.conf
+		echo "options nvidia_drm modeset=1 fbdev=1" >> /mnt/etc/modprobe.d/nvidia.conf
+
+	# Load nvidia, nvidia_modeset, nvidia_uvm  and nvidia_drm kernel modules
+	sed -i "s/MODULES=(/MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm /" /mnt/etc/mkinitcpio.conf
+	
+	sed -i "s/FILES=(/FILES=(/etc/modprobe.d/nvidia.conf /" /etc/mkinitcpio.conf
+
+	# Regenerate initramfs
+	arch-chroot /mnt mkinitcpio -P
+	
+	return 0
+}
+
 # Setup hyprland
 hyprland_setup(){
+	# TODO test if this is working
 	info_print "Installing hyprland packages"
 
-	hyprland_package=("uwsm" "hyprland" "hyprland-protocols" "xdg-desktop-portal-hyprland" "hyprpaper" "kitty" "sddm")
+	hyprland_package=("uwsm" "hyprland" "hyprland-protocols" "xdg-desktop-portal-hyprland" "hyprpaper" "kitty" "sddm" "playerctl" "qt6-svg" "qt6-virtualkeyboard" "qt6-multimedia-ffmpeg")
 	
 	install_packages ${hyprland_package[@]}
 	services+=(sddm.service)
 	
+	mkdir /mnt/etc/sddm.conf.d
+	cat > /mnt/etc/sddm.conf.d/sddm.conf << EOF
+
+    [General]
+    Numlock=on
+    DisplayServer=wayland
+    InputMethod=qtvirtualkeyboard
+    GreeterEnvironment=QML2_IMPORT_PATH=/usr/share/sddm/themes/silent/components/,QT_IM_MODULE=qtvirtualkeyboard
+
+    [Theme]
+    Current=silent
+    
+    [Wayland]
+    CompositorCommand=Hyprland
+	
+EOF
+	
 	# Ask to install my config file
+	
+	# Install silent theme for sddm https://github.com/uiriansan/SilentSDDM
+	curl https://github.com/uiriansan/SilentSDDM/archive/refs/tags/v1.2.1.tar.gz > silent.tar.gz
+	mkdir -p /mnt/usr/share/sddm/themes/silent
+	tar -xf silent.tar.gz -C /mnt/usr/share/sddm/themes/silent/
+	cp /mnt/usr/share/sddm/themes/silent/fonts/* /usr/share/fonts
 	
 	info_print "Hyprland installation succeed"
 	return 0
@@ -499,33 +588,6 @@ kde_setup(){
 	
 	info_print "Kde installation succeed"
 	return 0
-}
-
-# Setup the gpu driver
-gpu_driver_setup(){
-
-	info_print "Setup gpu driver"
-	# Check which gpu is here
-	gpus=$(lspci | grep VGA)
-	nvidia=$(echo $gpus | grep -i nvidia)
-	intel=$(echo $gpus | grep -i intel)
-	amd=$(echo $gpus | grep -i amd)
-	
-	
-	if [ -z $nvidia ];then
-		# Not having nvidia gpu
-		echo ""
-	fi
-	
-	# TODO install gpu drivers
-	
-	# NVIDIA
-	# enable drm kernel mode setting
-	# set NVreg_PreserveVideoMemoryAllocations=1
-	# systemctl enable nvidia-suspend.service
-	# systemctl enable nvidia-hibernate.service
-	# systemctl enable nvidia-resume.service
-	
 }
 
 info_print "Script start"
@@ -720,6 +782,7 @@ EOF
 
 separator_print
 # Ask the user if the script should stop the computer
+info_print "Installation finished"
 user_interaction_print "Shutdown the computer now ? y/N"
 read restart_answer
 if [[ $restart_answer =~ $regex_yes ]];then
