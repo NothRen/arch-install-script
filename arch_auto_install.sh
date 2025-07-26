@@ -13,7 +13,7 @@ BLUE='\e[34m'
 RESET='\e[0m'
 
 # Needed packages
-package_list=("base" "KERNEL" "linux-firmware" "KERNEL HEADERS" "base-devel" "nano" "git" "cmake" "meson" "networkmanager" "ufw" "sudo" "btrfs-progs" "bash-completion" "pkgfile" "fwupd" "smartmontools" "man-db" "man-pages" "grub" "efibootmgr" "dkms" "reflector" "ntfs-3g" "lynis" "7zip" "xdg-user-dirs" "pacman-contrib" "util-linux")
+package_list=("base" "KERNEL" "linux-firmware" "KERNEL HEADERS" "base-devel" "nano" "git" "cmake" "meson" "networkmanager" "ufw" "sudo" "btrfs-progs" "bash-completion" "pkgfile" "fwupd" "smartmontools" "man-db" "man-pages" "grub" "efibootmgr" "dkms" "reflector" "ntfs-3g" "lynis" "7zip" "xdg-user-dirs" "pacman-contrib" "util-linux" "fastfetch")
 # service
 services=(NetworkManager.service reflector.timer ufw.service pkgfile-update.timer fwupd.service fwupd-refresh.timer pacman-filesdb-refresh.timer)
 
@@ -161,7 +161,7 @@ user_pwd_selector(){
 	if [[ $user_same_pwd =~ $regex_yes ]]; then
 		
 		info_print "Same password used"
-		$userpwd=$rootpwd
+		userpwd=$rootpwd
 		return 0
 		
 	fi
@@ -422,7 +422,8 @@ graphical_environment_setup(){
 	# Graphical packages
 	global_graphical_packages=("wayland" "xorg-xwayland" "xdg-desktop-portal" "qt6-wayland" "qt5-wayland" "gtk3" "gtk4" "wl-clip-persist" "pipewire" "pipewire-audio" "pipewire-alsa" "pipewire-pulse" "alsa-utils")
 	
-	graphical_package_app=("firefox" "gnome-disk-utility" "udisks2-btrfs" "code" "gnome-boxes")
+	# To add : "virt-manager"
+	graphical_package_app=("firefox" "gnome-disk-utility" "udisks2-btrfs" "code"  "baobab")
 	
 	if [ "$graphical_env" != "none" ]; then
 		info_print "Installing global graphical packages"
@@ -483,16 +484,18 @@ gpu_driver_setup(){
 
 # Install nvidia gpu drivers
 nvidia_gpu_driver_setup(){
-	# TODO Test if this is working
-	nvidia_driver_packages=("nvidia-open-dkms" "nvidia-utils" "lib32-nvidia-utils" "vulkan-icd-loader" "lib32-vulkan-icd-loader" "nvidia-settings")
+	# Add "lib32-nvidia-utils" "lib32-vulkan-icd-loader"
+	nvidia_driver_packages=("nvidia-open-dkms" "nvidia-utils" "vulkan-icd-loader" "nvidia-settings")
 	
 	install_packages ${nvidia_driver_packages[@]}
+	
 	services+=(nvidia-suspend.service)
 	services+=(nvidia-hibernate.service)
 	services+=(nvidia-resume.service)
+	
 	cat >> /etc/environment << EOF
 GBM_BACKEND=nvidia-drm
-__GLX_VENDOR_LIBRARY_NAME=nvidia	
+__GLX_VENDOR_LIBRARY_NAME=nvidia
 EOF
 
 	# NVreg_DynamicPowerManagement=0x02 and NVreg_DynamicPowerManagementVideoMemoryThreshold=100 can be useful for laptop
@@ -517,36 +520,17 @@ hyprland_setup(){
 	# TODO test if this is working
 	info_print "Installing hyprland packages"
 
-	hyprland_package=("uwsm" "hyprland" "hyprland-protocols" "xdg-desktop-portal-hyprland" "hyprpaper" "kitty" "sddm" "playerctl" "qt6-svg" "qt6-virtualkeyboard" "qt6-multimedia-ffmpeg")
+	hyprland_package=("uwsm" "hyprland" "hyprland-protocols" "xdg-desktop-portal-hyprland" "hyprpaper" "kitty" "playerctl" "qt6-svg")
 	
 	install_packages ${hyprland_package[@]}
-	services+=(sddm.service)
-	
-	mkdir /mnt/etc/sddm.conf.d
-	cat > /mnt/etc/sddm.conf.d/sddm.conf << EOF
 
-    [General]
-    Numlock=on
-    DisplayServer=wayland
-    InputMethod=qtvirtualkeyboard
-    GreeterEnvironment=QML2_IMPORT_PATH=/usr/share/sddm/themes/silent/components/,QT_IM_MODULE=qtvirtualkeyboard
-
-    [Theme]
-    Current=silent
-    
-    [Wayland]
-    CompositorCommand=Hyprland
-	
+	cat >> /mnt/home/${username}/.profile << EOF
+if uwsm check may-start && uwsm select; then
+	exec uwsm start default
+fi
 EOF
-	
 	# Ask to install my config file
-	
-	# Install silent theme for sddm https://github.com/uiriansan/SilentSDDM
-	curl -L https://github.com/uiriansan/SilentSDDM/archive/refs/tags/v1.2.1.tar.gz > silent.tar.gz
-	mkdir -p /mnt/usr/share/sddm/themes/silent
-	tar -xf silent.tar.gz -C /mnt/usr/share/sddm/themes/silent/
-	cp /mnt/usr/share/sddm/themes/silent/fonts/* /usr/share/fonts
-	
+		
 	info_print "Hyprland installation succeed"
 	return 0
 }
@@ -588,6 +572,17 @@ kde_setup(){
 		install_packages ${kde_package_complete[@]}
 	fi
 	
+	mkdir /mnt/etc/sddm.conf.d
+	cat > /mnt/etc/sddm.conf.d/sddm.conf << EOF
+[General]
+Numlock=on
+DisplayServer=wayland
+GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
+    
+[Wayland]
+CompositorCommand=kwin_wayland --drm --no-lockscreen --no-global-shortcuts --locale1
+	
+EOF
 	
 	
 	info_print "Kde installation succeed"
@@ -650,7 +645,7 @@ mount --mkdir "/dev/${efi_partition}" /mnt/boot
 
 # Init the swap
 if [ -n "$swap_partition" ]; then
-	swapon $swap_partition
+	swapon "/dev/${swap_partition}"
 fi
 
 # Inintialize pacman
@@ -738,8 +733,8 @@ if [[ $create_user =~ $regex_yes ]]; then
 	echo "%wheel ALL=(ALL:ALL) ALL" > /mnt/etc/sudoers.d/groups
 	echo "Defaults timestamp_timeout=10" >> /mnt/etc/sudoers.d/groups
 	
-	cat > /mnt/home/${username}/.profile << EOF
-xdg-user-dirs-update
+	cat >> /mnt/home/${username}/.profile << EOF
+alias ll='ls -al'
 EOF
 
 	# Make ~/.bashrc to execute ~/.profile
