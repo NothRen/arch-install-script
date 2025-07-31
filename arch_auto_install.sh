@@ -437,6 +437,14 @@ graphical_environment_setup(){
 		#services+=(pipewire-pulse.service)
 		
 		gpu_driver_setup
+	else
+		
+		user_interaction_print "Do you want to install graphics driver ? [y/N]"
+		read driver_answer
+		if [[ $driver_answer =~ $regex_yes ]];then
+			gpu_driver_setup
+		fi
+
 	fi
 
 	case "$graphical_env" in
