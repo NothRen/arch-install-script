@@ -14,10 +14,11 @@ $ bash temp.txt
 ### Todo ?
 
 - Add an option to not delete other partition and to choose an existing efi partition
-- Add laptop option
+- Add laptop support
 - Install nvidia/amd driver and configure graphical environment accordingly
 
 ### Further reading :
 - https://wiki.archlinux.org
+
 [ Nvidia related ]
 - https://download.nvidia.com/XFree86/Linux-x86_64/570.144/README/
