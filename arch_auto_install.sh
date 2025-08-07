@@ -252,7 +252,7 @@ partition_disk(){
 	
 	
 	# Ask the user for confirmation before writing to disk
-	user_interaction_print "On ${disk_path} it will create :"
+	info_print "On ${disk_path} it will create :"
 	echo "A 1Gib efi partition"
 	
 	if [ ! -z "$swap_size" ] && [ ! $swap_size -eq 0 ]; then
@@ -288,12 +288,12 @@ partition_disk(){
 	info_print "Creating the partition"
 	# Create the partition with with fdisk
 	if [ ! -z "$swap_size" ] && [ ! $swap_size == 0 ]; then
-		(echo "n"; echo "p"; echo ""; echo ""; echo "+1G"; echo "t"; echo "uefi"; \
-		echo "n"; echo "p"; echo ""; echo ""; echo "+${swap_size}G"; echo "t"; echo ""; echo "swap"; \
-		echo "n"; echo "p"; echo ""; echo ""; echo "${root_size}"; echo "w") | fdisk $disk_path
+		(echo "g"; echo "n"; echo ""; echo ""; echo "+1G"; echo "t"; echo "uefi"; \
+		echo "n"; echo ""; echo ""; echo "+${swap_size}G"; echo "t"; echo ""; echo "swap"; \
+		echo "n"; echo ""; echo ""; echo "${root_size}"; echo "w") | fdisk $disk_path
 	else
-		(echo "n"; echo "p"; echo ""; echo ""; echo "+1G"; echo "t"; echo "uefi"; \
-		echo "n"; echo "p"; echo ""; echo ""; echo "${root_size}"; echo "w") | fdisk $disk_path
+		(echo "g";echo "n"; echo ""; echo ""; echo "+1G"; echo "t"; echo "uefi"; \
+		echo "n"; echo ""; echo ""; echo "${root_size}"; echo "w") | fdisk $disk_path
 	fi
 	
 	partitions=( $(lsblk "$disk_path" | grep -oE "$selected_disk[^ ]*\w") )
@@ -329,9 +329,9 @@ partition_disk(){
 # Ask for kernel
 kernel_selector(){
 
-	user_interaction_print "Which kernel do you want ? (Default 1)"
+	user_interaction_print "Which kernel do you want ?"
 	echo "
-1 - Normal kernel
+1 - Normal kernel (Default)
 2 - Hardened kernel
 3 - LTS kernel
 4 - Zen kernel"
@@ -432,7 +432,6 @@ graphical_environment_setup(){
 		
 		install_packages ${graphical_package_app[@]} 
 		
-		# TODO test
 		systemctl enable --user pipewire-pulse.service
 		#services+=(pipewire-pulse.service)
 		
