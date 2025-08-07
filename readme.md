@@ -19,5 +19,6 @@ $ bash temp.txt
 
 ### Further reading :
 - https://wiki.archlinux.org
+
 [ Nvidia related ]
 - https://download.nvidia.com/XFree86/Linux-x86_64/570.144/README/
