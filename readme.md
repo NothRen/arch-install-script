@@ -10,12 +10,15 @@ $ curl https://raw.githubusercontent.com/NothRen/arch-install-script/refs/heads/
 $ bash temp.txt
 ```
 
+#  Current state : 
 
-### Todo ?
+- Amd and intel gpu drivers are not installated by the script
+
+### Todo
 
 - Add an option to not delete other partition and to choose an existing efi partition
 - Add laptop support
-- Install nvidia/amd driver and configure graphical environment accordingly
+- Install amd/intel driver and configure graphical environment accordingly
 
 ### Further reading :
 - https://wiki.archlinux.org

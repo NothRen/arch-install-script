@@ -524,7 +524,6 @@ EOF
 
 # Setup hyprland
 hyprland_setup(){
-	# TODO test if this is working
 	info_print "Installing hyprland packages"
 
 	hyprland_package=("uwsm" "hyprland" "hyprland-protocols" "xdg-desktop-portal-hyprland" "hyprpaper" "kitty" "playerctl" "qt6-svg")
@@ -536,8 +535,6 @@ if uwsm check may-start && uwsm select; then
 	exec uwsm start default
 fi
 EOF
-	# Ask to install my config file
-		
 	info_print "Hyprland installation succeed"
 	return 0
 }
