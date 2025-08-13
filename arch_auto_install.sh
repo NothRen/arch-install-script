@@ -14,29 +14,29 @@ RESET='\e[0m'
 
 # Needed packages
 package_list=("base" "KERNEL" "linux-firmware" "KERNEL HEADERS" "base-devel" "nano" "git" "cmake" "meson" "networkmanager" "ufw" "sudo" "btrfs-progs" "bash-completion" "pkgfile" "fwupd" "smartmontools" "man-db" "man-pages" "grub" "efibootmgr" "dkms" "reflector" "ntfs-3g" "lynis" "7zip" "xdg-user-dirs" "pacman-contrib" "util-linux" "fastfetch")
-# service
+# Service to enable
 services=(NetworkManager.service reflector.timer ufw.service pkgfile-update.timer fwupd.service fwupd-refresh.timer pacman-filesdb-refresh.timer)
 
 # System 
 system_lang="fr_FR.UTF-8 UTF-8"
 keyboard_lang="fr-latin1"
 graphical_env="hyprland"
-# Print functions
 
+# Print functions
 separator_print(){
 	echo "---------------------------"
 }
 
 info_print(){
-	 echo -e "${BOLD}${BLUE}[INFO]${RESET} ${BOLD}$1${RESET}"
+	echo -e "${BOLD}${BLUE}[INFO]${RESET} ${BOLD}$1${RESET}"
 }
 
 user_interaction_print(){
-	 echo -e "${BOLD}${GREEN}[USER]${RESET} $1"
+	echo -e "${BOLD}${GREEN}[USER]${RESET} $1"
 }
 
 error_print(){
-	 echo -e "${BOLD}${RED}[ERROR]${RESET} ${BOLD}$1${RESET}"
+	echo -e "${BOLD}${RED}[ERROR]${RESET} ${BOLD}$1${RESET}"
 }
 
 # Helper functions
@@ -757,7 +757,7 @@ info_print "Set up installed packages"
 # Disable iptables.service beacause it is not compatible with ufw
 systemctl disable iptables.service --root=/mnt
 
-# Enable systemd service from pacman packages
+# Enable systemd services from pacman packages
 for service in "${services[@]}"; do
 	systemctl enable "$service" --root=/mnt
 done
@@ -776,7 +776,7 @@ EOF
 # Change pacman config
 sed -i 's/#Color/Color\nILoveCandy/g' /mnt/etc/pacman.conf
 
-# 
+# Add multilib for 32bit package support
 cat >> /mnt/etc/pacman.conf << EOF
 [multilib]
 Include = /etc/pacman.d/mirrorlist
@@ -796,4 +796,3 @@ fi
 
 info_print "Script has finished, you can now restart your computer."
 exit 0
-
