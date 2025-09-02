@@ -4,11 +4,12 @@ This script is in active development.
 
 # Usage : 
 
-When boot in arch live iso : 
+When boot in arch live iso run this command : : 
 ```
 $ curl https://raw.githubusercontent.com/NothRen/arch-install-script/refs/heads/main/arch_auto_install.sh > temp.txt
 $ bash temp.txt
 ```
+(https://minifi.ca/arch-auto-install)
 
 #  Current state : 
 
