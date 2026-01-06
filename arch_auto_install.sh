@@ -687,6 +687,7 @@ arch-chroot /mnt /bin/bash -e <<EOF
 	locale-gen &> /dev/null
 	echo "LANG=$system_lang" > /etc/locale.conf
 	echo "KEYMAP=$keyboard_lang" > /etc/vconsole.conf
+	sudo localectl set-keymap $keyboard_lang
 	
 	# Create users directory using xdg-user-dirs
 	xdg-user-dirs-update
